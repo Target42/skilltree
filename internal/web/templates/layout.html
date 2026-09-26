@@ -1,0 +1,69 @@
+{{define "brand-mark"}}
+<svg class="brand-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true" focusable="false">
+  <g fill="none" stroke="#0f6b5c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 28 V16"/>
+    <path d="M16 20 L7 13"/>
+    <path d="M16 18 L25 11"/>
+    <path d="M16 14 L11 6"/>
+    <path d="M16 14 L22 5"/>
+  </g>
+  <circle cx="16" cy="16" r="2.1" fill="#0f6b5c"/>
+  <circle cx="7" cy="13" r="2.6" fill="#fffdf8" stroke="#1c2420" stroke-width="1.5"/>
+  <circle cx="25" cy="11" r="2.6" fill="#0f6b5c"/>
+  <circle cx="11" cy="6" r="2.6" fill="#fffdf8" stroke="#1c2420" stroke-width="1.5"/>
+  <circle cx="22" cy="5" r="2.6" fill="#d7ebe5" stroke="#0f6b5c" stroke-width="1.5"/>
+</svg>
+{{end}}
+
+{{define "csrf"}}
+<input type="hidden" name="csrf_token" value="{{.}}">
+{{end}}
+
+{{define "header"}}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4" crossorigin="anonymous"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-main">
+      <a class="brand" href="/">
+        {{template "brand-mark" .}}
+        <span>Skilltree</span>
+      </a>
+      <p class="tagline">Wissen sichtbar machen</p>
+    </div>
+    {{if .User}}
+    <div class="top-user">
+      <span class="user-label">{{.User.Label}}</span>
+      <span class="tenant-label">{{.User.TenantName}}</span>
+      {{if .User.IsAdmin}}
+      <a href="/admin/users">Benutzer</a>
+      {{end}}
+      {{if .User.IsPlatformAdmin}}
+      <a href="/platform/tenants">Mandanten</a>
+      {{end}}
+      {{if or .User.IsDeletionOfficer .User.IsAdmin}}
+      <a href="/deletion-requests">Löschanträge</a>
+      {{end}}
+      <form class="inline-form" method="post" action="/logout">
+        {{template "csrf" .CSRF}}
+        <button type="submit" class="linkish">Abmelden</button>
+      </form>
+    </div>
+    {{end}}
+  </header>
+  <main>
+{{end}}
+
+{{define "footer"}}
+  </main>
+</body>
+</html>
+{{end}}

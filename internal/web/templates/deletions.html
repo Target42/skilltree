@@ -1,0 +1,34 @@
+{{define "deletions"}}
+{{template "header" .}}
+<section class="detail" style="max-width:48rem;margin:0 auto;">
+  <header class="detail-head">
+    <h1>Löschanträge</h1>
+    <p class="detail-desc">Offene Anträge prüfen und freigeben oder ablehnen.</p>
+  </header>
+
+  {{if .Requests}}
+  <ul class="request-list">
+    {{range .Requests}}
+    <li>
+      <div>
+        <strong>{{if eq .EntityType "group"}}Gruppe{{else}}Skill{{end}}: {{.EntityLabel}}</strong>
+        <span class="meta">von {{.Requester}} · {{.CreatedAt.Format "02.01.2006 15:04"}}</span>
+        {{if .Reason}}<p>{{.Reason}}</p>{{end}}
+      </div>
+      <form method="post" action="/deletion-requests/{{.ID}}/decide" class="decide-form">
+        {{template "csrf" $.CSRF}}
+        <label>Notiz <input name="review_note" maxlength="500"></label>
+        <div class="decide-actions">
+          <button type="submit" name="decision" value="approve">Löschen freigeben</button>
+          <button type="submit" name="decision" value="reject" class="secondary">Ablehnen</button>
+        </div>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="empty">Keine offenen Löschanträge.</p>
+  {{end}}
+</section>
+{{template "footer" .}}
+{{end}}

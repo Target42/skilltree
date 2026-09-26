@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skilltree-postgres
+    environment:
+      POSTGRES_USER: skilltree
+      POSTGRES_PASSWORD: skilltree
+      POSTGRES_DB: skilltree
+    ports:
+      - "55432:5432"
+    volumes:
+      - skilltree_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skilltree -d skilltree"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  skilltree_pgdata:

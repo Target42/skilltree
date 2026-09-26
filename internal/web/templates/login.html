@@ -1,0 +1,34 @@
+{{define "login"}}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-page">
+  <main class="login-box">
+    <h1 class="brand brand-login">
+      {{template "brand-mark" .}}
+      <span>Skilltree</span>
+    </h1>
+    <p class="detail-desc">Anmelden, um Wissen und Levels zu sehen.</p>
+    {{if eq .Error "rate"}}
+    <p class="error">Zu viele Anmeldeversuche. Bitte kurz warten und erneut versuchen.</p>
+    {{else if .Error}}
+    <p class="error">Anmeldung fehlgeschlagen. Firma, Benutzer oder Passwort prüfen.</p>
+    {{end}}
+    <form method="post" action="/login">
+      {{template "csrf" .CSRF}}
+      <label>Firma <input name="tenant" value="{{.Tenant}}" required autofocus autocomplete="organization" placeholder="demo"></label>
+      <label>Benutzername <input name="username" value="{{.Username}}" required autocomplete="username"></label>
+      <label>Passwort <input type="password" name="password" required autocomplete="current-password"></label>
+      <button type="submit">Anmelden</button>
+    </form>
+    <p class="hint">Dev: Firma <code>demo</code>, User <code>demo</code> / <code>demo</code> (Plattform-Admin) · <code>alice</code> / <code>demo</code></p>
+  </main>
+</body>
+</html>
+{{end}}

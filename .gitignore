@@ -1,0 +1,6 @@
+/dist/
+/skilltree
+/skilltree.exe
+*.deb
+.env
+*.log

@@ -1,0 +1,50 @@
+{{define "skill_manage"}}
+{{template "header" .}}
+<section class="detail manage-page">
+  <p class="crumb"><a href="/groups/{{.Group.ID}}/skills/{{.Skill.ID}}">← {{.Skill.Name}}</a></p>
+
+  <header class="detail-head">
+    <h1>Skill verwalten</h1>
+    <p class="detail-desc">{{.Skill.Name}}</p>
+    {{if .Skill.PendingDeletion}}
+    <p class="banner warn">Löschung beantragt – wartet auf Löschbeauftragte.</p>
+    {{end}}
+  </header>
+
+  <section class="manage-block">
+    <h2>Bearbeiten</h2>
+    <form method="post" action="/skills/{{.Skill.ID}}">
+      {{template "csrf" .CSRF}}
+      <input type="hidden" name="group_id" value="{{.Group.ID}}">
+      <label>Name <input name="name" required maxlength="200" value="{{.Skill.Name}}"></label>
+      <label>Beschreibung <textarea name="description" rows="3">{{.Skill.Description}}</textarea></label>
+      <button type="submit">Speichern</button>
+    </form>
+  </section>
+
+  <section class="manage-block">
+    <h2>Löschen</h2>
+    {{if .Skill.CanHardDelete}}
+    <p class="hint">Keine fremden Bewertungen – du kannst den Skill als Ersteller direkt löschen.</p>
+    <form class="danger-form" method="post" action="/skills/{{.Skill.ID}}/delete" onsubmit="return confirm('Skill wirklich löschen?');">
+      {{template "csrf" .CSRF}}
+      <input type="hidden" name="group_id" value="{{.Group.ID}}">
+      <input type="hidden" name="mode" value="hard">
+      <button type="submit" class="danger">Skill löschen</button>
+    </form>
+    {{else if .Skill.CanRequestDelete}}
+    <p class="hint">Es gibt bereits Daten bzw. du bist nicht (allein) löschberechtigt – Löschung muss beantragt werden.</p>
+    <form method="post" action="/skills/{{.Skill.ID}}/delete">
+      {{template "csrf" .CSRF}}
+      <input type="hidden" name="group_id" value="{{.Group.ID}}">
+      <input type="hidden" name="mode" value="request">
+      <label>Begründung <textarea name="reason" rows="3" required></textarea></label>
+      <button type="submit" class="danger">Löschung beantragen</button>
+    </form>
+    {{else}}
+    <p class="empty">Ein Löschantrag ist bereits offen.</p>
+    {{end}}
+  </section>
+</section>
+{{template "footer" .}}
+{{end}}

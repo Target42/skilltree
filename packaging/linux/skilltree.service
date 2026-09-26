@@ -1,0 +1,21 @@
+[Unit]
+Description=Skilltree knowledge service
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/skilltree/skilltree.env
+ExecStart=/usr/bin/skilltree
+Restart=on-failure
+RestartSec=3
+User=skilltree
+Group=skilltree
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/skilltree
+WorkingDirectory=/var/lib/skilltree
+
+[Install]
+WantedBy=multi-user.target

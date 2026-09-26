@@ -1,0 +1,60 @@
+# nfpm config – build .deb (on Linux or via Docker):
+#   go build -o skilltree ./cmd/skilltree
+#   docker run --rm -v "$PWD":/work -w /work goreleaser/nfpm package --config packaging/nfpm.yaml --packager deb --target dist/
+
+name: skilltree
+arch: amd64
+platform: linux
+version: 0.1.0
+section: web
+priority: optional
+maintainer: Skilltree <skilltree@localhost>
+description: |
+  Skilltree – firmeninterne Wissens- und Skillverwaltung.
+vendor: Skilltree
+homepage: https://localhost/
+license: proprietary
+
+recommends:
+  - nginx
+
+contents:
+  - src: skilltree
+    dst: /usr/bin/skilltree
+    file_info:
+      mode: 0755
+  - src: packaging/linux/skilltree.service
+    dst: /lib/systemd/system/skilltree.service
+    file_info:
+      mode: 0644
+  - src: packaging/linux/skilltree.env.example
+    dst: /etc/skilltree/skilltree.env
+    type: config|noreplace
+    file_info:
+      mode: 0640
+
+  # nginx: upstream/zones auto-loaded in http {}; site not enabled by default
+  - src: packaging/nginx/conf.d/skilltree-upstream.conf
+    dst: /etc/nginx/conf.d/skilltree-upstream.conf
+    type: config|noreplace
+    file_info:
+      mode: 0644
+  - src: packaging/nginx/snippets/skilltree-proxy-params.conf
+    dst: /etc/nginx/snippets/skilltree-proxy-params.conf
+    type: config|noreplace
+    file_info:
+      mode: 0644
+  - src: packaging/nginx/snippets/skilltree-security-headers.conf
+    dst: /etc/nginx/snippets/skilltree-security-headers.conf
+    type: config|noreplace
+    file_info:
+      mode: 0644
+  - src: packaging/nginx/sites-available/skilltree
+    dst: /etc/nginx/sites-available/skilltree
+    type: config|noreplace
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: packaging/linux/postinstall.sh
+  preremove: packaging/linux/preremove.sh
