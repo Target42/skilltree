@@ -27,6 +27,7 @@ type User struct {
 	TenantID          int64
 	Username          string
 	DisplayName       string
+	Email             string
 	IsAdmin           bool
 	IsDeletionOfficer bool
 	IsPlatformAdmin   bool
@@ -54,7 +55,7 @@ func bcryptHash(password string) (string, error) {
 }
 
 const userSelectCols = `
-u.id, u.tenant_id, u.username, u.display_name, u.is_admin, u.is_deletion_officer,
+u.id, u.tenant_id, u.username, u.display_name, u.email, u.is_admin, u.is_deletion_officer,
 u.is_platform_admin, u.is_active, u.password_hash, u.created_at,
 t.slug, t.name, t.is_active`
 
@@ -63,7 +64,7 @@ func scanUser(scanner interface {
 }) (*User, error) {
 	var u User
 	err := scanner.Scan(
-		&u.ID, &u.TenantID, &u.Username, &u.DisplayName, &u.IsAdmin, &u.IsDeletionOfficer,
+		&u.ID, &u.TenantID, &u.Username, &u.DisplayName, &u.Email, &u.IsAdmin, &u.IsDeletionOfficer,
 		&u.IsPlatformAdmin, &u.IsActive, &u.PasswordHash, &u.CreatedAt,
 		&u.TenantSlug, &u.TenantName, &u.TenantActive,
 	)
@@ -109,28 +110,111 @@ WHERE t.slug = $1 AND u.username = $2`
 	return u, nil
 }
 
-func (s *Store) ListUsersByTenant(ctx context.Context, tenantID int64) ([]User, error) {
+const DefaultUsersPageSize = 20
+
+type ListUsersFilter struct {
+	Query    string
+	Letter   string // "" or a-z
+	Page     int
+	PageSize int
+}
+
+type ListUsersResult struct {
+	Users      []User
+	Total      int64
+	Page       int
+	PageSize   int
+	TotalPages int
+}
+
+func (f ListUsersFilter) Normalized() ListUsersFilter {
+	f.Query = strings.TrimSpace(f.Query)
+	if len(f.Query) > 100 {
+		f.Query = f.Query[:100]
+	}
+	f.Letter = strings.ToLower(strings.TrimSpace(f.Letter))
+	if len(f.Letter) != 1 || f.Letter[0] < 'a' || f.Letter[0] > 'z' {
+		f.Letter = ""
+	}
+	if f.PageSize <= 0 {
+		f.PageSize = DefaultUsersPageSize
+	}
+	if f.PageSize > 100 {
+		f.PageSize = 100
+	}
+	if f.Page <= 0 {
+		f.Page = 1
+	}
+	return f
+}
+
+func likeContains(q string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + replacer.Replace(q) + "%"
+}
+
+func (s *Store) ListUsersByTenant(ctx context.Context, tenantID int64, f ListUsersFilter) (ListUsersResult, error) {
+	f = f.Normalized()
+	search := ""
+	if f.Query != "" {
+		search = likeContains(f.Query)
+	}
+
+	const countQ = `
+SELECT COUNT(*)
+FROM users u
+WHERE u.tenant_id = $1
+  AND ($2 = '' OR u.username ILIKE $2 ESCAPE '\' OR u.display_name ILIKE $2 ESCAPE '\' OR u.email ILIKE $2 ESCAPE '\')
+  AND ($3 = '' OR lower(left(u.username, 1)) = $3)`
+
+	var total int64
+	if err := s.db.QueryRowContext(ctx, countQ, tenantID, search, f.Letter).Scan(&total); err != nil {
+		return ListUsersResult{}, err
+	}
+
+	page := f.Page
+	totalPages := 1
+	if total > 0 {
+		totalPages = int((total + int64(f.PageSize) - 1) / int64(f.PageSize))
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * f.PageSize
+
 	q := `
 SELECT ` + userSelectCols + `
 FROM users u
 JOIN tenants t ON t.id = u.tenant_id
 WHERE u.tenant_id = $1
-ORDER BY u.username`
-	rows, err := s.db.QueryContext(ctx, q, tenantID)
+  AND ($2 = '' OR u.username ILIKE $2 ESCAPE '\' OR u.display_name ILIKE $2 ESCAPE '\' OR u.email ILIKE $2 ESCAPE '\')
+  AND ($3 = '' OR lower(left(u.username, 1)) = $3)
+ORDER BY u.username
+LIMIT $4 OFFSET $5`
+	rows, err := s.db.QueryContext(ctx, q, tenantID, search, f.Letter, f.PageSize, offset)
 	if err != nil {
-		return nil, err
+		return ListUsersResult{}, err
 	}
 	defer rows.Close()
 
-	var out []User
+	out := make([]User, 0, f.PageSize)
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
-			return nil, err
+			return ListUsersResult{}, err
 		}
 		out = append(out, *u)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return ListUsersResult{}, err
+	}
+	return ListUsersResult{
+		Users:      out,
+		Total:      total,
+		Page:       page,
+		PageSize:   f.PageSize,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *Store) GetUserInTenant(ctx context.Context, tenantID, userID int64) (*User, error) {
@@ -150,6 +234,7 @@ type CreateUserInput struct {
 	TenantID          int64
 	Username          string
 	DisplayName       string
+	Email             string
 	Password          string
 	IsAdmin           bool
 	IsDeletionOfficer bool
@@ -168,16 +253,22 @@ func (s *Store) CreateUser(ctx context.Context, in CreateUserInput) (int64, erro
 	if err := ValidatePassword(in.Password); err != nil {
 		return 0, err
 	}
+	email := NormalizeEmail(in.Email)
+	if email != "" {
+		if err := ValidateEmail(email); err != nil {
+			return 0, err
+		}
+	}
 	hash, err := bcryptHash(in.Password)
 	if err != nil {
 		return 0, err
 	}
 	var id int64
 	err = s.db.QueryRowContext(ctx, `
-INSERT INTO users (tenant_id, username, display_name, password_hash, is_admin, is_deletion_officer, is_platform_admin, is_active)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO users (tenant_id, username, display_name, email, password_hash, is_admin, is_deletion_officer, is_platform_admin, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id`,
-		in.TenantID, username, strings.TrimSpace(in.DisplayName), hash,
+		in.TenantID, username, strings.TrimSpace(in.DisplayName), email, hash,
 		in.IsAdmin, in.IsDeletionOfficer, in.IsPlatformAdmin, in.IsActive,
 	).Scan(&id)
 	if err != nil {
@@ -193,6 +284,7 @@ type UpdateUserInput struct {
 	TenantID          int64
 	UserID            int64
 	DisplayName       string
+	Email             string
 	IsAdmin           bool
 	IsDeletionOfficer bool
 	IsActive          bool
@@ -200,6 +292,13 @@ type UpdateUserInput struct {
 }
 
 func (s *Store) UpdateUser(ctx context.Context, in UpdateUserInput) error {
+	email := NormalizeEmail(in.Email)
+	if email != "" {
+		if err := ValidateEmail(email); err != nil {
+			return err
+		}
+	}
+
 	if strings.TrimSpace(in.NewPassword) != "" {
 		if err := ValidatePassword(in.NewPassword); err != nil {
 			return err
@@ -210,9 +309,9 @@ func (s *Store) UpdateUser(ctx context.Context, in UpdateUserInput) error {
 		}
 		res, err := s.db.ExecContext(ctx, `
 UPDATE users
-SET display_name = $3, is_admin = $4, is_deletion_officer = $5, is_active = $6, password_hash = $7
+SET display_name = $3, email = $4, is_admin = $5, is_deletion_officer = $6, is_active = $7, password_hash = $8
 WHERE id = $1 AND tenant_id = $2`,
-			in.UserID, in.TenantID, strings.TrimSpace(in.DisplayName),
+			in.UserID, in.TenantID, strings.TrimSpace(in.DisplayName), email,
 			in.IsAdmin, in.IsDeletionOfficer, in.IsActive, hash,
 		)
 		if err != nil {
@@ -230,9 +329,9 @@ WHERE id = $1 AND tenant_id = $2`,
 
 	res, err := s.db.ExecContext(ctx, `
 UPDATE users
-SET display_name = $3, is_admin = $4, is_deletion_officer = $5, is_active = $6
+SET display_name = $3, email = $4, is_admin = $5, is_deletion_officer = $6, is_active = $7
 WHERE id = $1 AND tenant_id = $2`,
-		in.UserID, in.TenantID, strings.TrimSpace(in.DisplayName),
+		in.UserID, in.TenantID, strings.TrimSpace(in.DisplayName), email,
 		in.IsAdmin, in.IsDeletionOfficer, in.IsActive,
 	)
 	if err != nil {

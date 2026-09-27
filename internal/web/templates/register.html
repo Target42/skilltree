@@ -1,0 +1,70 @@
+{{define "register"}}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-page">
+  <main class="login-box login-box-wide">
+    <h1 class="brand brand-login">
+      {{template "brand-mark" .}}
+      <span>Skilltree</span>
+    </h1>
+    <p class="detail-desc">Neue Firma registrieren. Nach der Bestätigung per E-Mail können Sie sich anmelden.</p>
+
+    {{if not .Enabled}}
+    <p class="error">Selbstregistrierung ist derzeit nicht verfügbar. Dafür muss SMTP (E-Mail-Versand) konfiguriert sein.</p>
+    <p class="auth-switch"><a href="/login">Zur Anmeldung</a></p>
+    {{else}}
+
+    {{if eq .Error "rate"}}
+    <p class="error">Zu viele Versuche. Bitte kurz warten und erneut versuchen.</p>
+    {{else if eq .Error "duplicate"}}
+    <p class="error">Dieses Firmenkürzel ist bereits vergeben (oder eine Registrierung läuft noch).</p>
+    {{else if eq .Error "slug"}}
+    <p class="error">Firmenkürzel ungültig (nur Kleinbuchstaben, Ziffern und Bindestriche).</p>
+    {{else if eq .Error "password"}}
+    <p class="error">Passwort muss mindestens 8 Zeichen haben.</p>
+    {{else if eq .Error "email"}}
+    <p class="error">Bitte eine gültige E-Mail-Adresse angeben.</p>
+    {{else if eq .Error "send"}}
+    <p class="error">Bestätigungs-E-Mail konnte nicht gesendet werden. Bitte später erneut versuchen.</p>
+    {{else if eq .Error "expired"}}
+    <p class="error">Der Bestätigungslink ist abgelaufen. Bitte erneut registrieren.</p>
+    {{else if eq .Error "token"}}
+    <p class="error">Bestätigungslink ungültig oder bereits verwendet.</p>
+    {{else if eq .Error "mail"}}
+    <p class="error">Selbstregistrierung ist derzeit nicht verfügbar.</p>
+    {{else if eq .Error "create"}}
+    <p class="error">Registrierung konnte nicht gestartet werden.</p>
+    {{end}}
+
+    {{if eq .Ok "sent"}}
+    <p class="banner ok">Bestätigungs-E-Mail wurde gesendet. Bitte Posteingang prüfen (Link 24 Stunden gültig).</p>
+    <p class="auth-switch"><a href="/login">Zur Anmeldung</a></p>
+    {{else}}
+    <form method="post" action="/register">
+      {{template "csrf" .CSRF}}
+      <label>Firmenkürzel
+        <input name="slug" value="{{.Slug}}" required autofocus autocomplete="off" placeholder="acme" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" title="Nur Kleinbuchstaben, Ziffern und Bindestriche">
+      </label>
+      <p class="hint">Kurzer Name für die Anmeldung (z. B. <code>acme</code>). Später nicht änderbar.</p>
+      <label>Firmenname <input name="name" value="{{.Name}}" required autocomplete="organization" placeholder="Acme GmbH"></label>
+      <label>E-Mail <input type="email" name="admin_email" value="{{.AdminEmail}}" required autocomplete="email"></label>
+      <label>Admin-Benutzername <input name="admin_username" value="{{.AdminUsername}}" required autocomplete="username"></label>
+      <label>Anzeigename <input name="admin_display_name" value="{{.AdminDisplayName}}" autocomplete="name"></label>
+      <label>Passwort <input type="password" name="admin_password" required minlength="8" autocomplete="new-password"></label>
+      <button type="submit">Registrieren</button>
+    </form>
+    <p class="auth-switch">Bereits registriert? <a href="/login">Anmelden</a></p>
+    {{end}}
+
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}

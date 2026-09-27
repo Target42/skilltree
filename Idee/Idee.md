@@ -15,7 +15,8 @@ Man kann sich auf Gruppen **registrieren (Watch)**. Kommen dort neue Skills hinz
 | Thema | Entscheidung |
 |--------|----------------|
 | Mandanten | Shared-DB mit `tenant_id`; eine Firma = ein Mandant, eigener Wissensbaum |
-| Login | Firmen-Slug + Benutzername + Passwort |
+| Login | Firmenkürzel + Benutzername + Passwort |
+| Selbstregistrierung | öffentliche Firmen-Registrierung nur mit konfiguriertem SMTP; Bestätigung per E-Mail |
 | Sichtbarkeit | nach Login alles **im eigenen Mandanten** sichtbar (freiwillig) |
 | Bewertung | 0–5; leer = kein Wissen; Levels anderer sichtbar |
 | Struktur | Wissensbaum, keine Org-Abbildung; Org kann später eine *Sicht* auf denselben Baum sein |
@@ -25,7 +26,7 @@ Man kann sich auf Gruppen **registrieren (Watch)**. Kommen dort neue Skills hinz
 | Löschen Gruppe | Ersteller, nur wenn leer (keine Untergruppen/Skills); sonst Löschantrag |
 | Löschen Skill | Ersteller, nur solange keine fremden Bewertungen; sonst Löschantrag |
 | Löschanträge | Löschbeauftragte (oder Tenant-Admin) entscheiden |
-| User-Verwaltung | Tenant-Admin legt User an/ändert/deaktiviert; Plattform-Admin legt Mandanten an |
+| User-Verwaltung | Tenant-Admin legt User an/ändert/deaktiviert; Plattform-Admin legt Mandanten an/löscht sie; optional Selbstregistrierung neuer Firmen (SMTP) |
 | Custom Stylesheets | zurückgestellt |
 
 ## Realisierung
@@ -43,7 +44,7 @@ Begründung Frontend: internes Tool (Formulare, Baum, Bewertungen) – eine eing
 
 ### Datenmodell (Skizze)
 
-- `tenants` – Firma (Slug, Name, aktiv)
+- `tenants` – Firma (Kürzel/Slug, Name, aktiv)
 - `users` – Login (Passwort-Hash), `tenant_id`, Tenant-Admin, Plattform-Admin, Löschbeauftragter, aktiv
 - `groups` – Baum (`parent_id` nullable), `tenant_id`, Name, Beschreibung, `created_by`
 - `skills` – Name, Beschreibung, `tenant_id`, `created_by` (eigenständig)

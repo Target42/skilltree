@@ -16,7 +16,8 @@ function Require-Command([string]$Name) {
 Require-Command go
 Require-Command docker
 
-New-Item -ItemType Directory -Force -Path (Join-Path $Root "dist") | Out-Null
+$Dist = Join-Path $Root "dist"
+New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 
 Write-Host "Building Linux amd64 binary..."
 $env:GOOS = "linux"
@@ -32,16 +33,22 @@ finally {
 
 # Docker Desktop accepts Windows paths; normalize to forward slashes.
 $Mount = ($Root.Path -replace "\\", "/")
+# Explicit file path avoids nfpm's "packager required for directory target" edge case.
+$DebTarget = "/work/dist/skilltree_0.1.0_amd64.deb"
 
 Write-Host "Packaging .deb with nfpm (Docker)..."
-& docker run --rm `
-    -v "${Mount}:/work" `
-    -w /work `
-    goreleaser/nfpm package `
-    --config packaging/nfpm.yaml `
-    --packager deb `
-    --target dist/
+$nfpmArgs = @(
+    "run", "--rm",
+    "-v", "${Mount}:/work",
+    "-w", "/work",
+    "goreleaser/nfpm",
+    "package",
+    "--config", "packaging/nfpm.yaml",
+    "--packager", "deb",
+    "--target", $DebTarget
+)
+& docker @nfpmArgs
 if ($LASTEXITCODE -ne 0) { throw "nfpm package failed (exit $LASTEXITCODE)" }
 
 Write-Host "deb written to dist/"
-Get-ChildItem (Join-Path $Root "dist") -Filter "*.deb" | ForEach-Object { Write-Host "  $($_.Name)" }
+Get-ChildItem $Dist -Filter "*.deb" | ForEach-Object { Write-Host "  $($_.Name)" }

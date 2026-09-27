@@ -1,18 +1,10 @@
-# Skilltree vhost — installed to sites-available, NOT auto-enabled.
-#
-# 1. Edit server_name + certificate paths below.
-# 2. sudo ln -s /etc/nginx/sites-available/skilltree /etc/nginx/sites-enabled/skilltree
-# 3. sudo nginx -t && sudo systemctl reload nginx
-#
-# Requires /etc/nginx/conf.d/skilltree-upstream.conf (shipped by the package).
-# App: SKILLTREE_HTTP_ADDR=127.0.0.1:8080
-#      SKILLTREE_TRUSTED_PROXIES=127.0.0.1,::1
-#      SKILLTREE_ENV=production
+# Skilltree — skilltree.duckdns.org
+# Requires: /etc/nginx/conf.d/skilltree-upstream.conf
 
 server {
     listen 80;
     listen [::]:80;
-    server_name skilltree.example.com;
+    server_name skilltree.duckdns.org;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -25,32 +17,21 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name skilltree.example.com;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name skilltree.duckdns.org;
 
-    ssl_certificate     /etc/letsencrypt/live/skilltree.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/skilltree.example.com/privkey.pem;
-    ssl_session_timeout 1d;
-    ssl_session_cache   shared:SSL:10m;
-    ssl_session_tickets off;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers off;
+    ssl_certificate     /etc/letsencrypt/live/skilltree.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/skilltree.duckdns.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     include snippets/skilltree-security-headers.conf;
 
     server_tokens off;
     client_max_body_size 1m;
-    client_body_timeout 10s;
-    client_header_timeout 10s;
-    send_timeout 30s;
 
     limit_conn skilltree_conn 20;
-
-    # Optional: company network only
-    # allow 10.0.0.0/8;
-    # allow 192.168.0.0/16;
-    # deny all;
 
     location = /healthz {
         proxy_pass http://skilltree_app;

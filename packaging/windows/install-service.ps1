@@ -11,9 +11,12 @@
 #
 # Set environment for the service (system-wide or service-specific):
 #   [System.Environment]::SetEnvironmentVariable("SKILLTREE_DATABASE_URL", "postgres://...", "Machine")
-#   [System.Environment]::SetEnvironmentVariable("SKILLTREE_HTTP_ADDR", ":8080", "Machine")
+#   [System.Environment]::SetEnvironmentVariable("SKILLTREE_HTTP_ADDR", ":8088", "Machine")
+#   [System.Environment]::SetEnvironmentVariable("SKILLTREE_SMTP_HOST", "smtp.example.com", "Machine")
+#   [System.Environment]::SetEnvironmentVariable("SKILLTREE_SMTP_FROM", "noreply@example.com", "Machine")
 #
 # Or use services.msc / sc.exe to configure. Default DB URL expects local Postgres.
+# Interactive runs also load a local .env next to the working directory.
 
 $ErrorActionPreference = "Stop"
 $Exe = Join-Path $PSScriptRoot "..\..\dist\skilltree.exe"

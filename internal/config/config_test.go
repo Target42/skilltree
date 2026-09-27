@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"os"
 	"testing"
 
 	"skilltree/internal/config"
@@ -8,7 +9,7 @@ import (
 
 func TestValidateProductionRequiresSecret(t *testing.T) {
 	cfg := config.Config{
-		HTTPAddr:      "127.0.0.1:8080",
+		HTTPAddr:      "127.0.0.1:8088",
 		DatabaseURL:   "postgres://x",
 		SessionSecret: config.DefaultSessionSecret,
 		CookieSecure:  "auto",
@@ -62,5 +63,61 @@ func TestParseTrustedProxies(t *testing.T) {
 	none, err := config.ParseTrustedProxies("none")
 	if err != nil || none != nil {
 		t.Fatalf("none: %v %#v", err, none)
+	}
+}
+
+func TestValidateSMTP(t *testing.T) {
+	base := config.Config{
+		HTTPAddr:     "127.0.0.1:8088",
+		DatabaseURL:  "postgres://x",
+		CookieSecure: "auto",
+		SMTPTLSMode:  "starttls",
+		SMTPPort:     587,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("empty smtp should be ok: %v", err)
+	}
+	partial := base
+	partial.SMTPHost = "smtp.example.com"
+	if err := partial.Validate(); err == nil {
+		t.Fatal("host without from should fail")
+	}
+	ok := base
+	ok.SMTPHost = "smtp.example.com"
+	ok.SMTPFrom = "noreply@example.com"
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("complete smtp should pass: %v", err)
+	}
+	if !ok.MailEnabled() {
+		t.Fatal("expected mail enabled")
+	}
+	badTLS := ok
+	badTLS.SMTPTLSMode = "ssl"
+	if err := badTLS.Validate(); err == nil {
+		t.Fatal("invalid tls mode should fail")
+	}
+}
+
+func TestLoadDotEnv(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + string(os.PathSeparator) + "test.env"
+	content := "# comment\nFOO=bar\nexport BAZ=\"qux\"\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FOO", "keep")
+	t.Setenv("BAZ", "")
+	_ = os.Unsetenv("BAZ")
+	if err := config.LoadDotEnv(path); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv("FOO"); got != "keep" {
+		t.Fatalf("must not override existing: %q", got)
+	}
+	if got := os.Getenv("BAZ"); got != "qux" {
+		t.Fatalf("BAZ=%q", got)
+	}
+	if err := config.LoadDotEnv(dir + string(os.PathSeparator) + "missing.env"); err != nil {
+		t.Fatalf("missing file should be ignored: %v", err)
 	}
 }

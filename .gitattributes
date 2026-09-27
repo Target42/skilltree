@@ -1,0 +1,6 @@
+# Keep packaging scripts/configs Unix-native for .deb builds on Windows.
+packaging/linux/** text eol=lf
+packaging/nginx/** text eol=lf
+packaging/build-deb.sh text eol=lf
+packaging/nfpm.yaml text eol=lf
+*.sh text eol=lf

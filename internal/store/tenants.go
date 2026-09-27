@@ -85,7 +85,8 @@ FROM tenants WHERE slug = $1`
 }
 
 // CreateTenantWithAdmin creates a tenant and its first tenant admin in one transaction.
-func (s *Store) CreateTenantWithAdmin(ctx context.Context, slug, name, adminUsername, adminDisplayName, adminPassword string) (tenantID, userID int64, err error) {
+// adminEmail may be empty (platform-admin provisioning); self-service signup always sets it.
+func (s *Store) CreateTenantWithAdmin(ctx context.Context, slug, name, adminUsername, adminDisplayName, adminEmail, adminPassword string) (tenantID, userID int64, err error) {
 	slug = NormalizeSlug(slug)
 	if err := ValidateSlug(slug); err != nil {
 		return 0, 0, err
@@ -103,6 +104,12 @@ func (s *Store) CreateTenantWithAdmin(ctx context.Context, slug, name, adminUser
 	}
 	if err := ValidatePassword(adminPassword); err != nil {
 		return 0, 0, err
+	}
+	email := NormalizeEmail(adminEmail)
+	if email != "" {
+		if err := ValidateEmail(email); err != nil {
+			return 0, 0, err
+		}
 	}
 
 	hash, err := bcryptHash(adminPassword)
@@ -128,9 +135,9 @@ RETURNING id`, slug, name).Scan(&tenantID)
 	}
 
 	err = tx.QueryRowContext(ctx, `
-INSERT INTO users (tenant_id, username, display_name, password_hash, is_admin, is_deletion_officer, is_platform_admin, is_active)
-VALUES ($1, $2, $3, $4, TRUE, FALSE, FALSE, TRUE)
-RETURNING id`, tenantID, adminUsername, strings.TrimSpace(adminDisplayName), hash).Scan(&userID)
+INSERT INTO users (tenant_id, username, display_name, email, password_hash, is_admin, is_deletion_officer, is_platform_admin, is_active)
+VALUES ($1, $2, $3, $4, $5, TRUE, FALSE, FALSE, TRUE)
+RETURNING id`, tenantID, adminUsername, strings.TrimSpace(adminDisplayName), email, hash).Scan(&userID)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return 0, 0, ErrDuplicate
@@ -189,3 +196,41 @@ func isUniqueViolation(err error) bool {
 }
 
 var ErrDuplicate = errors.New("duplicate")
+
+// DeleteTenant removes a tenant and all of its data.
+func (s *Store) DeleteTenant(ctx context.Context, tenantID int64) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM tenants WHERE id = $1)`, tenantID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return sql.ErrNoRows
+	}
+
+	steps := []string{
+		`DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE tenant_id = $1)`,
+		`DELETE FROM group_watches WHERE user_id IN (SELECT id FROM users WHERE tenant_id = $1)
+		   OR group_id IN (SELECT id FROM groups WHERE tenant_id = $1)`,
+		`DELETE FROM skill_ratings WHERE user_id IN (SELECT id FROM users WHERE tenant_id = $1)
+		   OR skill_id IN (SELECT id FROM skills WHERE tenant_id = $1)`,
+		`DELETE FROM deletion_requests WHERE tenant_id = $1`,
+		`DELETE FROM group_skills WHERE group_id IN (SELECT id FROM groups WHERE tenant_id = $1)
+		   OR skill_id IN (SELECT id FROM skills WHERE tenant_id = $1)`,
+		`DELETE FROM groups WHERE tenant_id = $1`,
+		`DELETE FROM skills WHERE tenant_id = $1`,
+		`DELETE FROM users WHERE tenant_id = $1`,
+		`DELETE FROM tenants WHERE id = $1`,
+	}
+	for _, q := range steps {
+		if _, err := tx.ExecContext(ctx, q, tenantID); err != nil {
+			return fmt.Errorf("delete tenant data: %w", err)
+		}
+	}
+	return tx.Commit()
+}

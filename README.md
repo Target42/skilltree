@@ -16,12 +16,14 @@ docker compose up -d
 go run ./cmd/skilltree
 ```
 
-Öffnen: http://127.0.0.1:8080 → Login  
+Öffnen: http://127.0.0.1:8088 → Login  
 (Dev-Postgres liegt auf Host-Port **55432**, damit lokale Postgres-Installationen auf 5432/5433 nicht kollidieren.)
 
-Der HTTP-Server lauscht standardmäßig nur auf **localhost** (`127.0.0.1:8080`) — gedacht für Betrieb hinter nginx auf demselben Host.
+Der HTTP-Server lauscht standardmäßig nur auf **localhost** (`127.0.0.1:8088`) — gedacht für Betrieb hinter nginx auf demselben Host.
 
-Login braucht **Firma (Slug)** + Benutzer + Passwort.
+Login braucht **Firmenkürzel** + Benutzer + Passwort.
+
+**Selbstregistrierung einer neuen Firma** (`/register`) ist nur aktiv, wenn SMTP konfiguriert ist (`SKILLTREE_SMTP_HOST` + `SKILLTREE_SMTP_FROM`). Nach dem Formular wird eine Bestätigungs-E-Mail mit Link gesendet; erst danach ist die Firma anmeldebereit.
 
 Dev-Mandant `demo` (Passwort jeweils `demo`):
 
@@ -32,11 +34,11 @@ Dev-Mandant `demo` (Passwort jeweils `demo`):
 
 Mandanten und Tenant-User werden in der UI verwaltet (`/platform/tenants` bzw. `/admin/users`).
 
-Umgebungsvariablen (siehe `.env.example`):
+Umgebungsvariablen (siehe `.env.example`; lokal wird `.env` beim Start geladen, falls vorhanden):
 
 | Variable | Default |
 |----------|---------|
-| `SKILLTREE_HTTP_ADDR` | `127.0.0.1:8080` |
+| `SKILLTREE_HTTP_ADDR` | `127.0.0.1:8088` |
 | `SKILLTREE_DATABASE_URL` | `postgres://skilltree:skilltree@127.0.0.1:55432/skilltree?sslmode=disable` |
 | `SKILLTREE_SESSION_SECRET` | Dev-Default (Warnung beim Start; mit `SKILLTREE_ENV=production` Pflicht) |
 | `SKILLTREE_COOKIE_SECURE` | `auto` (`true`/`false` oder TLS/`X-Forwarded-Proto` von Trusted Proxy) |
@@ -44,6 +46,12 @@ Umgebungsvariablen (siehe `.env.example`):
 | `SKILLTREE_ENV` | leer (`production` = strikte Secret-Prüfung) |
 | `SKILLTREE_SERVICE_NAME` | `skilltree` |
 | `SKILLTREE_DISPLAY_NAME` | `Skilltree` |
+| `SKILLTREE_SMTP_HOST` | leer (ohne Host+From: kein Versand) |
+| `SKILLTREE_SMTP_PORT` | `587` |
+| `SKILLTREE_SMTP_USER` | leer |
+| `SKILLTREE_SMTP_PASSWORD` | leer |
+| `SKILLTREE_SMTP_FROM` | leer (Absender, z. B. `Skilltree <noreply@example.com>`) |
+| `SKILLTREE_SMTP_TLS` | `starttls` (`tls` für Port 465, `none` ohne Verschlüsselung) |
 
 Sicherheit (Überblick): Session-Cookie (HMAC, HttpOnly, SameSite=Lax, Secure je nach TLS), CSRF auf allen POSTs, Login-Rate-Limit (10 / 15 min, echte Client-IP hinter Trusted Proxy), neue Passwörter ≥ 8 Zeichen, Request-Body max. 1 MiB.
 
@@ -58,7 +66,7 @@ Das `.deb` legt nginx-Dateien ab (Site wird **nicht** automatisch aktiviert):
 | `/etc/nginx/snippets/skilltree-security-headers.conf` | Security-Header |
 | `/etc/nginx/sites-available/skilltree` | vHost (HTTP→HTTPS) |
 
-1. Env auf Produktion setzen (`SKILLTREE_ENV=production`, starkes Secret, `127.0.0.1:8080`).
+1. Env auf Produktion setzen (`SKILLTREE_ENV=production`, starkes Secret, `127.0.0.1:8088`).
 2. In `/etc/nginx/sites-available/skilltree` `server_name` und Zertifikatspfade anpassen.
 3. Site aktivieren: `ln -s /etc/nginx/sites-available/skilltree /etc/nginx/sites-enabled/skilltree`
 4. `nginx -t && systemctl reload nginx`

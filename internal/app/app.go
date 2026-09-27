@@ -65,6 +65,11 @@ func (a *App) Start(ctx context.Context) error {
 	if a.cfg.UsingDevSessionSecret() {
 		a.log.Warn("using default SKILLTREE_SESSION_SECRET; set a strong secret before production (SKILLTREE_ENV=production enforces this)")
 	}
+	if a.cfg.MailEnabled() {
+		a.log.Info("smtp configured", "host", a.cfg.SMTPHost, "port", a.cfg.SMTPPort, "from", a.cfg.SMTPFrom, "tls", a.cfg.SMTPTLSMode)
+	} else {
+		a.log.Info("smtp not configured; outbound mail disabled")
+	}
 	err = a.http.ListenAndServe()
 	if err == http.ErrServerClosed {
 		return nil

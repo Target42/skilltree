@@ -13,6 +13,7 @@ import (
 
 	"skilltree/internal/auth"
 	"skilltree/internal/config"
+	"skilltree/internal/mail"
 	"skilltree/internal/store"
 	"skilltree/internal/web"
 )
@@ -25,6 +26,7 @@ type Server struct {
 	sessions *auth.Manager
 	csrf     *auth.CSRF
 	logins   *auth.LoginLimiter
+	mail     *mail.Sender
 }
 
 func New(st *store.Store, cfg config.Config, log *slog.Logger) (*Server, error) {
@@ -32,7 +34,7 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) (*Server, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	srv := &Server{
 		store:    st,
 		tmpl:     tmpl,
 		log:      log,
@@ -40,7 +42,18 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) (*Server, error) 
 		sessions: auth.NewManager(cfg.SessionSecret),
 		csrf:     auth.NewCSRF(),
 		logins:   auth.NewLoginLimiter(10, 15*time.Minute),
-	}, nil
+	}
+	if cfg.MailEnabled() {
+		srv.mail = &mail.Sender{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUser,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFrom,
+			TLSMode:  cfg.SMTPTLSMode,
+		}
+	}
+	return srv, nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -53,6 +66,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.loginForm)
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /logout", s.logout)
+	mux.HandleFunc("GET /register", s.registerForm)
+	mux.HandleFunc("POST /register", s.registerSubmit)
+	mux.HandleFunc("GET /register/confirm", s.registerConfirm)
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("GET /{$}", s.workspace)
@@ -72,10 +88,13 @@ func (s *Server) Handler() http.Handler {
 	protected.HandleFunc("GET /admin/users", s.adminUsers)
 	protected.HandleFunc("POST /admin/users", s.adminUserCreate)
 	protected.HandleFunc("POST /admin/users/{id}", s.adminUserUpdate)
+	protected.HandleFunc("GET /admin/firma", s.adminFirma)
+	protected.HandleFunc("POST /admin/firma", s.adminFirmaSubmit)
 
 	protected.HandleFunc("GET /platform/tenants", s.platformTenants)
 	protected.HandleFunc("POST /platform/tenants", s.platformTenantCreate)
 	protected.HandleFunc("POST /platform/tenants/{id}", s.platformTenantUpdate)
+	protected.HandleFunc("POST /platform/tenants/{id}/delete", s.platformTenantDelete)
 
 	mux.Handle("/", s.requireLogin(protected))
 	return s.withSecurity(mux)
@@ -156,10 +175,12 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, "login", map[string]any{
-		"Title":    "Anmelden · Skilltree",
-		"Error":    r.URL.Query().Get("error"),
-		"Tenant":   r.URL.Query().Get("tenant"),
-		"Username": r.URL.Query().Get("username"),
+		"Title":              "Anmelden · Skilltree",
+		"Error":              r.URL.Query().Get("error"),
+		"Ok":                 r.URL.Query().Get("ok"),
+		"Tenant":             r.URL.Query().Get("tenant"),
+		"Username":           r.URL.Query().Get("username"),
+		"RegistrationEnabled": s.registrationEnabled(),
 	})
 }
 

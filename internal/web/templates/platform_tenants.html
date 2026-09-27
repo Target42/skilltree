@@ -3,14 +3,14 @@
 <section class="detail admin-page">
   <header class="detail-head">
     <h1>Mandanten</h1>
-    <p class="detail-desc">Firmen anlegen und aktivieren. Jeder Mandant erhält einen eigenen Wissensbaum.</p>
+    <p class="detail-desc">Firmen anlegen, aktivieren und löschen. Jeder Mandant erhält einen eigenen Wissensbaum.</p>
   </header>
 
   {{if eq .Error "slug"}}
-  <p class="error">Slug ungültig (nur Kleinbuchstaben, Ziffern, Bindestriche).</p>
+  <p class="error">Firmenkürzel ungültig (nur Kleinbuchstaben, Ziffern und Bindestriche).</p>
   {{end}}
   {{if eq .Error "duplicate"}}
-  <p class="error">Slug oder Admin-Benutzername bereits vergeben.</p>
+  <p class="error">Firmenkürzel oder Admin-Benutzername bereits vergeben.</p>
   {{end}}
   {{if eq .Error "create"}}
   <p class="error">Mandant konnte nicht angelegt werden.</p>
@@ -18,20 +18,28 @@
   {{if eq .Error "password"}}
   <p class="error">Admin-Passwort muss mindestens 8 Zeichen haben.</p>
   {{end}}
+  {{if eq .Error "delete"}}
+  <p class="error">Mandant konnte nicht gelöscht werden.</p>
+  {{end}}
   {{if eq .Ok "created"}}
   <p class="banner ok">Mandant angelegt.</p>
   {{end}}
   {{if eq .Ok "updated"}}
   <p class="banner ok">Mandant aktualisiert.</p>
   {{end}}
+  {{if eq .Ok "deleted"}}
+  <p class="banner ok">Mandant gelöscht.</p>
+  {{end}}
 
   <h2>Neuer Mandant</h2>
   <form method="post" action="/platform/tenants" class="admin-form">
     {{template "csrf" .CSRF}}
-    <label>Slug <input name="slug" required placeholder="acme" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" autocomplete="off"></label>
+    <label>Firmenkürzel <input name="slug" required placeholder="acme" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" autocomplete="off" title="Nur Kleinbuchstaben, Ziffern und Bindestriche"></label>
+    <p class="hint">Kurzer Name für die Anmeldung, später nicht änderbar.</p>
     <label>Name <input name="name" required placeholder="Acme GmbH" autocomplete="organization"></label>
     <label>Admin-Benutzername <input name="admin_username" required autocomplete="off"></label>
     <label>Admin-Anzeigename <input name="admin_display_name" autocomplete="off"></label>
+    <label>Admin-E-Mail <input type="email" name="admin_email" autocomplete="off" placeholder="optional"></label>
     <label>Admin-Passwort <input type="password" name="admin_password" required minlength="8" autocomplete="new-password"></label>
     <button type="submit">Anlegen</button>
   </form>
@@ -46,12 +54,20 @@
         <div class="admin-meta">
           <strong>{{.Slug}}</strong>
           {{if not .IsActive}}<span class="pill warn">inaktiv</span>{{end}}
+          {{if eq .ID $.User.TenantID}}<span class="pill">eigene</span>{{end}}
           <span class="meta">seit {{.CreatedAt.Format "02.01.2006"}}</span>
         </div>
         <label>Name <input name="name" value="{{.Name}}" required></label>
         <label class="check"><input type="checkbox" name="is_active" value="1" {{if .IsActive}}checked{{end}}> Aktiv</label>
         <input type="hidden" name="set_active" value="1">
-        <button type="submit">Speichern</button>
+        <div class="admin-actions">
+          <button type="submit">Speichern</button>
+        </div>
+      </form>
+      <form method="post" action="/platform/tenants/{{.ID}}/delete" class="inline-form tenant-delete"
+            onsubmit="return confirm('Firma „{{.Name}}“ ({{.Slug}}) und alle zugehörigen Daten unwiderruflich löschen?');">
+        {{template "csrf" $.CSRF}}
+        <button type="submit" class="danger">Löschen</button>
       </form>
     </li>
     {{end}}

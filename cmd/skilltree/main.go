@@ -42,6 +42,11 @@ func main() {
 	ctrl := flag.String("service", "", "Windows/Linux service control: install|uninstall|start|stop")
 	flag.Parse()
 
+	if err := config.LoadDotEnv(".env"); err != nil {
+		fmt.Fprintf(os.Stderr, "load .env: %v\n", err)
+		os.Exit(1)
+	}
+
 	cfg := config.Load()
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 

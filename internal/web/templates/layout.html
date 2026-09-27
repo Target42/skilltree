@@ -40,11 +40,10 @@
       <p class="tagline">Wissen sichtbar machen</p>
     </div>
     {{if .User}}
-    <div class="top-user">
-      <span class="user-label">{{.User.Label}}</span>
-      <span class="tenant-label">{{.User.TenantName}}</span>
+    <nav class="top-nav" aria-label="Verwaltung">
       {{if .User.IsAdmin}}
       <a href="/admin/users">Benutzer</a>
+      <a href="/admin/firma">Firma</a>
       {{end}}
       {{if .User.IsPlatformAdmin}}
       <a href="/platform/tenants">Mandanten</a>
@@ -52,6 +51,10 @@
       {{if or .User.IsDeletionOfficer .User.IsAdmin}}
       <a href="/deletion-requests">Löschanträge</a>
       {{end}}
+    </nav>
+    <div class="top-user">
+      <span class="user-label">{{.User.Label}}</span>
+      <span class="tenant-label">{{.User.TenantName}}</span>
       <form class="inline-form" method="post" action="/logout">
         {{template "csrf" .CSRF}}
         <button type="submit" class="linkish">Abmelden</button>

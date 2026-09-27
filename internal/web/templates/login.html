@@ -18,16 +18,22 @@
     {{if eq .Error "rate"}}
     <p class="error">Zu viele Anmeldeversuche. Bitte kurz warten und erneut versuchen.</p>
     {{else if .Error}}
-    <p class="error">Anmeldung fehlgeschlagen. Firma, Benutzer oder Passwort prüfen.</p>
+    <p class="error">Anmeldung fehlgeschlagen. Firmenkürzel, Benutzer oder Passwort prüfen.</p>
+    {{end}}
+    {{if eq .Ok "registered"}}
+    <p class="banner ok">Firma bestätigt. Sie können sich jetzt anmelden.</p>
     {{end}}
     <form method="post" action="/login">
       {{template "csrf" .CSRF}}
-      <label>Firma <input name="tenant" value="{{.Tenant}}" required autofocus autocomplete="organization" placeholder="demo"></label>
+      <label>Firmenkürzel <input name="tenant" value="{{.Tenant}}" required autofocus autocomplete="organization" placeholder="acme" title="Kurzname Ihrer Firma, z. B. acme"></label>
       <label>Benutzername <input name="username" value="{{.Username}}" required autocomplete="username"></label>
       <label>Passwort <input type="password" name="password" required autocomplete="current-password"></label>
       <button type="submit">Anmelden</button>
     </form>
-    <p class="hint">Dev: Firma <code>demo</code>, User <code>demo</code> / <code>demo</code> (Plattform-Admin) · <code>alice</code> / <code>demo</code></p>
+    {{if .RegistrationEnabled}}
+    <p class="auth-switch">Neue Firma? <a href="/register">Registrieren</a></p>
+    {{end}}
+    <p class="hint">Dev: Kürzel <code>demo</code>, User <code>demo</code> / <code>demo</code> (Plattform-Admin) · <code>alice</code> / <code>demo</code></p>
   </main>
 </body>
 </html>

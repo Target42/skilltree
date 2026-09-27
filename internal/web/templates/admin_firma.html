@@ -1,0 +1,44 @@
+{{define "admin_firma"}}
+{{template "header" .}}
+<section class="detail admin-page">
+  <header class="detail-head">
+    <h1>Firma</h1>
+    <p class="detail-desc">Einstellungen für {{.Tenant.Name}}.</p>
+  </header>
+
+  {{if eq .Error "name"}}
+  <p class="error">Name darf nicht leer sein.</p>
+  {{end}}
+  {{if eq .Error "confirm"}}
+  <p class="error">Zum Löschen bitte das Firmenkürzel exakt bestätigen.</p>
+  {{end}}
+  {{if eq .Error "delete"}}
+  <p class="error">Firma konnte nicht gelöscht werden.</p>
+  {{end}}
+  {{if eq .Ok "updated"}}
+  <p class="banner ok">Firma aktualisiert.</p>
+  {{end}}
+
+  <h2>Name</h2>
+  <form method="post" action="/admin/firma" class="admin-form">
+    {{template "csrf" .CSRF}}
+    <input type="hidden" name="action" value="rename">
+    <label>Firmenname <input name="name" value="{{.Tenant.Name}}" required autocomplete="organization"></label>
+    <p class="hint">Firmenkürzel <code>{{.Tenant.Slug}}</code> (für die Anmeldung, nicht änderbar)</p>
+    <button type="submit">Speichern</button>
+  </form>
+
+  <h2>Firma löschen</h2>
+  <div class="danger-zone">
+    <p>Löscht die Firma unwiderruflich inkl. aller Benutzer, Gruppen und Skills.</p>
+    <form method="post" action="/admin/firma" class="admin-form"
+          onsubmit="return confirm('Firma wirklich unwiderruflich löschen?');">
+      {{template "csrf" .CSRF}}
+      <input type="hidden" name="action" value="delete">
+      <label>Firmenkürzel zur Bestätigung <input name="confirm_slug" required autocomplete="off" placeholder="{{.Tenant.Slug}}"></label>
+      <button type="submit" class="danger">Firma löschen</button>
+    </form>
+  </div>
+</section>
+{{template "footer" .}}
+{{end}}
