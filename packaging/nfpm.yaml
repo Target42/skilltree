@@ -12,7 +12,7 @@ maintainer: Skilltree <skilltree@localhost>
 description: |
   Skilltree – firmeninterne Wissens- und Skillverwaltung.
 vendor: Skilltree
-homepage: https://localhost/
+homepage: https://github.com/Target42/skilltree
 license: proprietary
 
 recommends:

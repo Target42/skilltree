@@ -23,6 +23,35 @@ body {
   flex-direction: column;
 }
 
+main {
+  flex: 1 0 auto;
+}
+
+.site-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1.5rem 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.login-page .site-footer-public {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
 .top {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--line);
